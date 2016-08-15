@@ -1,0 +1,46 @@
+Advanced Patterns with io.ReadWriter
+Subtitle of document
+18 Aug 2016
+Tags: Go, Golang, Patterns, ReadWriter, IO
+
+Paul Bellamy
+Software Engineer, Weaveworks
+paul@weave.works
+http://weave.works/
+@pyrhho
+
+* Intro
+
+** Weaveworks
+
+* Foundations
+
+** What's available in io, bufio, and ioutil
+
+** LimitReader (or MaxBytesReader)
+*** Shows a bit of the implementation (how to build your own)
+
+* HTTP Chunking
+
+** Goals
+
+Transparently proxy chunked HTTP in a stream.
+
+*** httputil.ChunkedReader
+
+Great, but strips out chunks.
+
+We want a transparent proxy, so we can't re-chunk the data.
+
+** One Solution
+
+# TODO: Figure out diagrams
+Shows tee, copy, and discard
+
+* Line-prefix using InfiniteMultiReader
+
+** Splitting with bufio.Scanner
+
+** Composing with io.MultiReader
+
+** Introducing InfiniteMultiReader
