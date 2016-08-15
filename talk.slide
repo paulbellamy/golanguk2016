@@ -1,7 +1,7 @@
 Advanced Patterns with io.ReadWriter
-Subtitle of document
+
 18 Aug 2016
-Tags: Go, Golang, Patterns, ReadWriter, IO
+
 
 Paul Bellamy
 Software Engineer, Weaveworks
@@ -9,38 +9,280 @@ paul@weave.works
 http://weave.works/
 @pyrhho
 
-* Intro
+*  
 
-** Weaveworks
+: 2 Goals
+: Goal 1: for someone to see this talk, and say "Aha! I can use that to clean up a part of my own code"
+: Goal 2: After this talk you'll say "That's not advanced, that's obvious!"
 
-* Foundations
+: There will be quite a lot of code
+: We'll go through stuff fairly quick
 
-** What's available in io, bufio, and ioutil
+.image weave.png 480 640
 
-** LimitReader (or MaxBytesReader)
-*** Shows a bit of the implementation (how to build your own)
+* What's available in io, bufio, & ioutil?
 
-* HTTP Chunking
+: Simply put? Building blocks, and great examples
 
-** Goals
+* What's available in io, bufio, & ioutil?
 
-Transparently proxy chunked HTTP in a stream.
+  type ReadWriter interface {
+        Read(p []byte) (n int, err error)
+        Write(p []byte) (n int, err error)
+  }
 
-*** httputil.ChunkedReader
+Tools for working with ReadWriters:
 
-Great, but strips out chunks.
+- io.Copy
+- io.LimitReader
+- io.MultiReader
+- io.TeeReader
+- bufio.Scanner
+- ioutil.Discard
 
-We want a transparent proxy, so we can't re-chunk the data.
+* io.LimitReader
 
-** One Solution
+: Building our own abstractions around Readers is really easy
 
-# TODO: Figure out diagrams
-Shows tee, copy, and discard
+* io.LimitReader
 
-* Line-prefix using InfiniteMultiReader
+.code limit.go /START OMIT/,/END OMIT/
 
-** Splitting with bufio.Scanner
+: This is the whole code. We'll go through it.
 
-** Composing with io.MultiReader
+: LimitedReader limits the amount of data returned to N bytes.
+: After N bytes have been read, it returns io.EOF
+: The signal for "no more data"
 
-** Introducing InfiniteMultiReader
+: Constructed with the LimitReader function
+
+: Has an underlying reader R, and some internal state N
+
+: Look at the Read method
+: If N is zero, we're done, so EOF
+: Create a N-wide slice of P
+: Pass that into the underlying reader
+: Decrement our state
+
+: Like the best abstractions, it's simple.
+: Expressive.
+: Does what it says
+
+* Example 1 - HTTP Chunking
+
+* Example 1 - HTTP Chunking
+
+Let's transparently proxy chunked HTTP in a stream.
+
+: What does HTTP chunked encoding look like?
+
+* Example 1 - HTTP Chunking
+
+: Body is the interesting part here.
+: Each chunk has a hex length, then carriage-return-linefeed
+: E chunk is 14 characters long.
+: Body ends with 0-length chunk and two carriage-return-linefeed
+: Note the two trailers, Date, and Content-MD5
+: Like headers, but *after* the body
+: We want to preserve the Trailers, and handle them separately.
+
+Encoded:
+
+  POST / HTTP/1.1
+  Transfer-Encoding: chunked
+
+  4\r\n
+  Wiki\r\n
+  5\r\n
+  pedia\r\n
+  E\r\n
+   in\r\n
+  \r\n
+  chunks.\r\n
+  0\r\n
+  Date: Sun, 06 Nov 1994 08:49:37 GMT\r\n
+  Content-MD5: 1B2M2Y8AsgTpgAmY7PhCfg==\r\n
+  \r\n
+
+Decoded Body:
+
+  Wikipedia in
+
+  chunks.
+
+* Solution 1
+
+.code chunking1.go /START OMIT/,/END OMIT/
+
+Obvious solution with io.Copy
+
+* Solution 1
+
+.code chunking1.go /START OMIT/,/END OMIT/
+
+Obvious solution with io.Copy
+
+Problems:
+
+- Won't preserve the Trailers
+- We need to stop after the body
+
+* Solution 2
+
+: Dig around in httputil, and find httputil.ChunkedReader
+
+.code chunking2.go /START OMIT/,/END OMIT/
+
+Better solution with httputil.ChunkedReader
+
+: Is great, and probably good enough for most of the time
+: But, has some issues
+
+* Solution 2
+
+: Dig around in httputil, and find httputil.ChunkedReader
+
+: Problems:
+: Turns it into one continuous byte-stream
+: Breaks the transparency of our proxy.
+
+.code chunking2.go /START OMIT/,/END OMIT/
+
+Better solution with httputil.ChunkedReader
+
+Problems:
+
+- Strips out the chunking data
+
+  4\r\n           --->    Wikipedia in
+  Wiki\r\n
+  5\r\n                   chunks.
+  pedia\r\n
+  E\r\n
+   in\r\n
+  \r\n
+  chunks.\r\n
+  0\r\n
+  \r\n
+
+* Solution 3
+
+: A correct solution.
+: Adds in a io.TeeReader, and ioutil.Discard.
+: A bit dense
+
+: Every time we read from TeeReader, it writes the raw data to clientWriter
+: ChunkedReader to detect the end of the body
+: io.Copy to "pull" the data through
+: But we don't care about the output
+
+.code chunking3.go /START OMIT/,/END OMIT/
+
+.image chunking.svg
+
+* Example 2 - Prefix Each Line
+
+: Something a bit lighter
+
+* Example 2 - Prefix Each Line
+
+: We want to stream this through.
+: Forget BigData. This is UltraData
+
+Prefix each line of a stream with some text.
+
+Adding timestamps to log lines.
+
+Input:
+
+  The servers are on fire
+  My pants are on fire
+  The fire is on fire
+
+Output:
+
+  [2009-11-10 23:00:00 +0000 UTC] The servers are on fire
+  [2009-11-10 23:01:00 +0000 UTC] My pants are on fire
+  [2009-11-10 23:02:00 +0000 UTC] The fire is on fire
+
+* Solution
+
+: Splitting streams into sections with bufio.Scanner.
+: A scanner turns streams of bytes into streams of tokens
+: Default is split by line
+: Others are utf-8 runes, words, or custom.
+: This gives us a sequence of lines
+
+Split with bufio.Scanner
+
+.code prefix1.go /START OMIT/,/END OMIT/
+
+* Solution
+
+: Still scanning over each line.
+: Generate the timestamp
+: MultiReader to concatenate the readers
+: Prefix the timestamp to the beginning of each line.
+: We're turning the input stream into a list of readers
+: one-per-line, with our prefix prepended.
+
+Compose with io.MultiReader
+
+.code prefix2.go /START OMIT/,/END OMIT/
+
+: How to turn list of readers back into one reader?
+: Could combine with MultiReaders again..
+
+: But, we don't know how many lines there are
+: Could be infinite
+: We need some sort of...
+: Infinite ... Multi ... Reader
+: Naming is hard.
+
+* Solution
+
+: Here's one I made earlier
+
+: Not going to go in-depth on how this works
+: You could have discovered it
+
+: More of a lazy-multi-reader
+: Reads to the end of the current reader
+: then calls getNextReader, to get the next reader
+: etc.
+
+InfiniteMultiReader
+
+.link https://github.com/paulbellamy/infinite_multi_reader go get github.com/paulbellamy/infinite_multi_reader
+
+Usage:
+
+  import (
+    imr "github.com/paulbellamy/infinite_multi_reader"
+  )
+
+  getNextReader := func() (io.Reader, error) {
+    // ...
+    // return the_next_reader, err
+    //
+    // when there are no more readers:
+    // return nil, io.EOF
+  }
+  reader := imr.InfiniteMultiReader(getNextReader)
+
+
+* Solution
+
+: We define an InfiniteMultiReader
+: use it to concatenate our lineReaders together
+: output here is one reader, with our output bytestream
+: Only has to buffer one line worth of input
+: Should be quite efficient
+
+Concatenate our line-readers into one Reader
+
+.code prefix3.go /START OMIT/,/END OMIT/
+
+* Solution
+
+.image prefix.svg
