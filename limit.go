@@ -1,24 +1,19 @@
 package main
 
-// START OMIT
-// Constructor
-func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+import (
+	"io"
+	"os"
+	"strings"
+)
 
-type LimitedReader struct {
-	R Reader // underlying reader
-	N int64  // max bytes remaining
+func main() {
+	// START OMIT
+	var r io.Reader
+
+	r = strings.NewReader("1234567890")
+
+	r = io.LimitReader(r, 5)
+
+	io.Copy(os.Stdout, r)
+	// END OMIT
 }
-
-func (l *LimitedReader) Read(p []byte) (n int, err error) {
-	if l.N <= 0 {
-		return 0, io.EOF
-	}
-	if int64(len(p)) > l.N {
-		p = p[0:l.N]
-	}
-	n, err = l.R.Read(p)
-	l.N -= int64(n)
-	return
-}
-
-// END OMIT
