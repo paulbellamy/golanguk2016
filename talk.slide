@@ -181,6 +181,16 @@ Problems:
 
 .code chunking3.go /START OMIT/,/END OMIT/
 
+* Exercises For The Reader
+
+: Answers:
+: 1. Yes
+: 2. Depends on number of copies
+
+1. Could we implement this in a single reader?
+
+2. Would that be more performant, or less?
+
 * Example 2 - Multiplexing Subcommands
 
 : Something a bit lighter
@@ -287,3 +297,16 @@ io.Pipe to the rescue
 .image prefix3.svg
 
 .code prefix.go /START IMPL OMIT/,/END IMPL OMIT/
+
+* Exercises For The Reader
+
+: Answers:
+: 1. Yes, if output blocks indefinitely
+: 2. Avoid using a goroutine. Use a WriteCloser, to guarantee cleanup
+: 3. bytes.Buffer
+
+1. Could this leak goroutines?
+
+2. How could we avoid leaking goroutines?
+
+3. What if we wanted to save the output until the process exited?
