@@ -9,7 +9,7 @@ paul@weave.works
 http://weave.works/
 @pyrhho
 
-*  
+* 
 
 : Goal: After this talk you'll be able to say "That's not advanced, that's obvious!"
 
@@ -17,6 +17,12 @@ http://weave.works/
 : We'll go through stuff fairly quick
 
 .image weave.png 480 640
+
+* 
+
+: not this kind of readers.
+
+.image kitten.jpg 480 640
 
 * What's available in io, bufio, & ioutil?
 
