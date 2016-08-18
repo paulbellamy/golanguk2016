@@ -1,15 +1,16 @@
 package main
 
 import (
+	"crypto/md5"
 	"io"
-	"io/ioutil"
 	"net/http/httputil"
 )
 
 func main() {
 	// START OMIT
+	digest := md5.New()
 	io.Copy(
-		ioutil.Discard,
+		digest,
 		httputil.NewChunkedReader(
 			io.TeeReader(
 				responseBody,

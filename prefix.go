@@ -44,6 +44,7 @@ func prefixingWriter(prefix string, output io.Writer) io.Writer {
 	pipeReader, pipeWriter := io.Pipe()
 
 	scanner := bufio.NewScanner(pipeReader)
+	scanner.SplitFunc(bufio.ScanLines)
 
 	go func() {
 		for scanner.Scan() {

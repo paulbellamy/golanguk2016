@@ -31,10 +31,8 @@ http://github.com/paulbellamy/golanguk2016
 * What's available in io, bufio, & ioutil?
 
 : ReadWriter is one of the most powerful abstractions available in Go.
-: Simple
-: Expressive
-: Composable
-: Interchangeable
+: Simple, Expressive,Composable, Interchangeable
+: Loads more in standard library
 
   type ReadWriter interface {
         Read(p []byte) (n int, err error)
@@ -59,24 +57,25 @@ Loads more!
 
 * Composition
 
-: Start with a basic reader
-: Stream of numbers
-
 : LimitedReader limits the amount of data returned to N bytes.
-: After N bytes have been read, it returns io.EOF
-: The signal for "no more data"
-
-: Constructed with the LimitReader function
+: After N bytes have been read, it returns io.EOF, the signal for "no more data"
 
 : LimitReader source is very readable
-: A good example
+: Wraps our number stream, Still fulfills same interface
 
-: Wraps our number stream
-: Still fulfills same interface
-: Show Compression (gzip.NewReader on Stdout)
-: MaxByteReader
+: io.Copy Backwards
 
-.code -edit limit.go /START OMIT/,/END OMIT/
+.code limit.go /START SETUP OMIT/,/END SETUP OMIT/
+
+.code limit.go /START OUTPUT OMIT/,/END OUTPUT OMIT/
+
+* Composition
+
+: Seamlessly gzipped output
+
+.code limit.go /START SETUP OMIT/,/END SETUP OMIT/
+
+.code limit.go /START GZIP OMIT/,/END GZIP OMIT/
 
 * Example 1 - HTTP Chunking
 
@@ -122,6 +121,15 @@ Decoded Body:
   Wikipedia in
 
   chunks.
+
+* Example 1 - HTTP Chunking
+
+: Client should not care about how data is chunked
+: Some expect json objects to align
+
+Why?
+
+.image docker.svg
 
 * Solution 1
 
@@ -175,27 +183,18 @@ Problems:
   
   chunks.
 
+- Can't validate the MD5
+
 * Solution 3
 
-: A correct solution. A bit dense
-: Adds in a io.TeeReader, and ioutil.Discard.
 : Every read from TeeReader writes the raw data to clientWriter, ChunkedReader to detect the end of the body
-: io.Copy to "pull" the data through, but we don't care about the output
 : Like a transistor
+: 1. Could we implement this in a single reader? Yes
+: 2. Would that be more performant, or less? Depends on number of copies
 
 .image chunking3.svg
 
 .code chunking3.go /START OMIT/,/END OMIT/
-
-* Exercises For The Reader
-
-: Answers:
-: 1. Yes
-: 2. Depends on number of copies
-
-1. Could we implement this in a single reader?
-
-2. Would that be more performant, or less?
 
 * Example 2 - Multiplexing Subcommands
 
@@ -255,7 +254,7 @@ Prefixing Writer
 : A scanner turns streams of bytes into streams of tokens
 : Default is split by line, others are utf-8 runes, words, or custom.
 : This lets us iterate over the lines in a reader
-
+: mention Fscanf
 : Let's look at input to see how it connects 
 
 Splitting streams into sections with bufio.Scanner
@@ -265,6 +264,8 @@ Splitting streams into sections with bufio.Scanner
 
     // Iterate over each line
     scanner := bufio.NewScanner(input)
+    scanner.SplitFunc(bufio.ScanLines)
+
     for scanner.Scan() {
 
       // Write the prefix into the output
@@ -293,26 +294,13 @@ What is `input` ?
 * Example 2 - Multiplexing Subcommands
 
 : io.Pipe two synchronous halves, similar to a chan
-: Write blocks on a read, Read blocks on a write
-
-: Final implementation, Pipe to connect the reader and writer
-: Scanner to tokenize into lines, Goroutine prefixing and merging
+: Pipe to connect the reader and writer, Scanner to tokenize into lines, Goroutine prefixing and merging
+: 1. Could this leak goroutines? Yes, if output blocks indefinitely
+: 2. How could we avoid leaking goroutines? Avoid using a goroutine. Use a WriteCloser, to guarantee cleanup
+: 3. What if we wanted to save the output until the process exited? bytes.Buffer
 
 io.Pipe to the rescue
 
 .image prefix3.svg
 
 .code prefix.go /START IMPL OMIT/,/END IMPL OMIT/
-
-* Exercises For The Reader
-
-: Answers:
-: 1. Yes, if output blocks indefinitely
-: 2. Avoid using a goroutine. Use a WriteCloser, to guarantee cleanup
-: 3. bytes.Buffer
-
-1. Could this leak goroutines?
-
-2. How could we avoid leaking goroutines?
-
-3. What if we wanted to save the output until the process exited?
